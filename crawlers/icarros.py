@@ -51,7 +51,7 @@ def get_dom(estado, carro):
     url = monta_url_icarros(estado, carro)
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(headless=False)
 
         context = browser.new_context(
             user_agent=ua.random,
@@ -64,33 +64,42 @@ def get_dom(estado, carro):
 
         page = context.new_page()
 
-        # Stealth para não parecer automação
+        # Stealth
         page.add_init_script("""
             Object.defineProperty(navigator, 'webdriver', {
               get: () => undefined
             });
-
-            window.chrome = {
-                runtime: {},
-                loadTimes: function() {},
-                csi: function() {},
-            };
-
-            Object.defineProperty(navigator, 'languages', {
-                get: () => ['pt-BR', 'pt']
-            });
-
-            Object.defineProperty(navigator, 'plugins', {
-                get: () => [1, 2, 3]
-            });
+            window.chrome = { runtime: {}, loadTimes: () => {}, csi: () => {} };
+            Object.defineProperty(navigator, 'languages', { get: () => ['pt-BR', 'pt'] });
+            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
         """)
 
-        page.goto(url, timeout=220000)
-        page.wait_for_load_state("networkidle", timeout=220000)
+        tentativas = 2
+        for tentativa in range(tentativas):
+            try:
+                print(f"Tentativa {tentativa + 1} de {tentativas} para acessar: {url}")
+                page.goto(url, timeout=60000)
+                page.wait_for_load_state("networkidle", timeout=60000)
+                dom = page.content()
 
-        dom = page.content()
+                # Se o DOM for muito pequeno, tenta novamente (página possivelmente falhou)
+                if len(dom) < 5000 and tentativa < tentativas - 1:
+                    print("DOM muito pequeno, recarregando página...")
+                    page.reload()
+                    continue
+
+                # Limpa linhas vazias
+                dom_limpado = "\n".join([linha for linha in dom.splitlines() if linha.strip() != ""])
+                return dom_limpado
+
+            except Exception as e:
+                print("Erro ao tentar carregar a página:", e)
+                if tentativa < tentativas - 1:
+                    print("Tentando novamente...")
+                    page.reload()
+                else:
+                    raise e
         browser.close()
 
-
-    return dom
+    return dom_limpado
 
