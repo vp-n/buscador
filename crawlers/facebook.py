@@ -1,12 +1,15 @@
 from fake_useragent import UserAgent
 from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
 
+import urllib.parse
+
 ua = UserAgent()
+
 
 estado_cidade_slug = {
     "mg": "belo horizonte",
     "pa": "belem",
-    "rr": "boa vista",
+    "rr": "112868175391887",
     "df": "brasilia",
     "ms": "campo grande",
     "mt": "cuiaba",
@@ -15,29 +18,34 @@ estado_cidade_slug = {
     "ce": "fortaleza",
     "go": "goiania",
     "pb": "joao pessoa",
-    "ap": "macapa",
+    "ap": "116071178402961",
     "al": "maceio",
     "am": "manaus",
     "rn": "natal",
-    "to": "palmas",
+    "to": "113043862042267",
     "rs": "porto alegre",
-    "ro": "porto velho",
+    "ro": "108549759176811",
     "pe": "recife",
-    "ac": "rio branco",
+    "ac": "101857903189722",
     "rj": "rio de janeiro",
     "ba": "salvador",
     "ma": "sao luis",
     "sp": "sao paulo",
     "pi": "teresina",
-    "es": "vitoria"
+    "es": "113949485283402"
 }
 
 def monta_url_facebook(estado, carro):
-    cidade_slug = estado_cidade_slug.get(estado.lower())
-    if not cidade_slug:
+    cidade = estado_cidade_slug.get(estado.lower())
+    if not cidade:
         raise ValueError(f"Estado '{estado}' não mapeado.")
-    carro_slug = carro.lower().replace(" ", "+")
-    return f"https://www.facebook.com/marketplace/{cidade_slug}/search/?query={carro_slug}"
+    
+    cidade_slug = cidade.lower().replace(" ", "")
+    carro_encoded = urllib.parse.quote(carro.lower())
+
+    return f"https://www.facebook.com/marketplace/{cidade_slug}/search/?query={carro_encoded}&exact=false"
+
+    print()
 
 def get_dom(estado, carro):
     url = monta_url_facebook(estado, carro)

@@ -6,11 +6,34 @@ ua = UserAgent()
 
 # Dicionário com cidade e coordenadas pode ser compartilhado entre módulos
 estado_cidade_nome = {
-    "sp": "sao paulo",
-    "rj": "rio de janeiro",
+    "mg": "belo horizonte",
+    "pa": "belem",
+    "rr": "boa vista",
+    "df": "brasilia",
+    "ms": "campo grande",
+    "mt": "cuiaba",
+    "pr": "curitiba",
+    "sc": "florianopolis",
+    "ce": "fortaleza",
+    "go": "goiania",
+    "pb": "joao pessoa",
+    "ap": "macapa",
+    "al": "maceio",
     "am": "manaus",
-    # ... outros estados
+    "rn": "natal",
+    "to": "palmas",
+    "rs": "porto alegre",
+    "ro": "porto velho",
+    "pe": "recife",
+    "ac": "rio branco",
+    "rj": "rio de janeiro",
+    "ba": "salvador",
+    "ma": "sao luis",
+    "sp": "sao paulo",
+    "pi": "teresina",
+    "es": "vitoria"
 }
+
 
 def monta_url_mobiauto(estado, marca, modelo):
     cidade = estado_cidade_nome.get(estado.lower())

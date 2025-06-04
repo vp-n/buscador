@@ -7,29 +7,24 @@ app = Flask(__name__)
 def handle_dom():
     site = request.args.get('site')
     estado = request.args.get('estado')
-    carro = request.args.get('carro')  # Pode ser "modelo" ou "carro"
-    marca = request.args.get('marca')  # Nova variável para marca
+    carro = request.args.get('carro')  # Modelo ou nome do carro
+    marca = request.args.get('marca')  # Só necessário para alguns sites
 
-    # Validação dos parâmetros básicos
-    if not site or not estado or not carro:
-        return jsonify({"error": "Parâmetros 'site', 'estado' e 'carro' são obrigatórios."}), 400
+    if not site or not carro or (site.lower() != "napista" and not estado):
+        return jsonify({"error": "Parâmetros 'site', 'estado' e 'carro' são obrigatórios (exceto 'estado' para o site napista)."}), 400
 
     try:
-        # Importa o módulo do crawler conforme o site informado
         module = importlib.import_module(f'crawlers.{site.lower()}')
 
-        if site.lower() == "webmotors":
-            # Webmotors precisa de marca também
+        if site.lower() in ["webmotors", "mobiauto"]:
             if not marca:
-                return jsonify({"error": "Parâmetro 'marca' é obrigatório para o site Webmotors."}), 400
-            # Chama get_dom com estado, marca e carro
+                return jsonify({"error": f"Parâmetro 'marca' é obrigatório para o site {site}."}), 400
             dom = module.get_dom(estado, marca, carro)
 
         elif site.lower() == "napista":
             dom = module.get_dom(carro)
 
         else:
-            # Para outros sites, só estado e carro são necessários
             dom = module.get_dom(estado, carro)
 
         return jsonify({"dom": dom})

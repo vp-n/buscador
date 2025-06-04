@@ -7,10 +7,10 @@ ua = UserAgent()
 def get_dom(carro):
     # Substitui espaço por hífen e coloca em minúsculo (formato usado na URL)
     carro_formatado = carro.lower().replace(" ", "-")
-    url = f"https://www.napista.com.br/busca?termo={carro_formatado}"
+    url = f"https://www.napista.com.br/busca/{carro_formatado}?pn=1"
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(headless=False)
 
         context = browser.new_context(
             user_agent=ua.random,
