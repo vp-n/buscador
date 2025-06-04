@@ -14,24 +14,18 @@ def extrair_carros_completos_icarros(html):
 
     for a in links:
         try:
-            # Link do carro
             href = a.get("href", "")
             link = f"https://www.icarros.com.br{href}" if href.startswith("/") else href
 
-            # Extrai conteúdo do atributo onclick
             onclick = a.get("onclick", "")
             json_like = re.search(r"\{event: 'select_item', text:.*?\}\s*\)\s*\}\)", onclick, re.DOTALL)
-
             if not json_like:
                 continue
 
-            # Extrai JSON simulando estrutura
             dados_raw = json_like.group()
-
-            # Converte para formato JSON válido
             dados_raw = dados_raw.replace("event: 'select_item', ", "")
-            dados_raw = re.sub(r"(\w+):", r'"\1":', dados_raw)  # transforma em "chave":
-            dados_raw = dados_raw.replace("'", '"')  # aspas simples para duplas
+            dados_raw = re.sub(r"(\w+):", r'"\1":', dados_raw)
+            dados_raw = dados_raw.replace("'", '"')
             dados_json = json.loads(dados_raw)
 
             item = dados_json.get("select_item_items", dados_json.get("select_item", {}))
@@ -40,13 +34,23 @@ def extrair_carros_completos_icarros(html):
             preco = item.get("price")
             localizacao = item.get("item_category4")
             km = item.get("item_category")
-            imagem = None  # Não visível no DOM inspecionado
+            combustivel = item.get("item_category2")
+
+            # Procura imagem dentro do mesmo card (ancestral de <a>)
+            card = a.find_parent("li") or a.find_parent("div")
+            img_tag = card.find("img") if card else None
+            imagem = img_tag.get("src") if img_tag and img_tag.get("src") else None
+
+            partes_modelo = modelo.split() if modelo else []
+            marca = partes_modelo[0] if partes_modelo else None
 
             carros.append({
+                "marca": marca,
                 "modelo": modelo,
                 "preco": preco,
                 "localizacao": localizacao,
                 "quilometragem": km,
+                "combustivel": combustivel,
                 "imagem": imagem,
                 "descricao": modelo,
                 "link": link,

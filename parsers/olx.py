@@ -22,8 +22,14 @@ def extrair_carros_completos_olx(html):
             preco = int(preco_match.group(1).replace('.', '')) if preco_match else None
 
             km_tag = card.find("div", class_="olx-adcard__detail")
-            km_match = re.search(r"([\d\.]+)\s?km", km_tag.text) if km_tag else None
+            detalhes_texto = km_tag.text if km_tag else ""
+
+            km_match = re.search(r"([\d\.]+)\s?km", detalhes_texto)
             km = int(km_match.group(1).replace('.', '')) if km_match else None
+
+            # Buscar tipo de combustível (ex: Flex, Gasolina, Diesel, Etanol, Elétrico)
+            combustivel_match = re.search(r"(Flex|Gasolina|Diesel|Etanol|Elétrico)", detalhes_texto, re.IGNORECASE)
+            combustivel = combustivel_match.group(1) if combustivel_match else None
 
             img_tag = card.find("img")
             imagem = img_tag.get("src") if img_tag and img_tag.get("src") else None
@@ -32,13 +38,16 @@ def extrair_carros_completos_olx(html):
             localizacao = local_div.text.strip() if local_div else None
 
             partes = titulo.split()
-            modelo = f"{partes[0]} {partes[1]}" if len(partes) > 1 else partes[0] if partes else None
+            marca = partes[0] if partes else None
+            modelo = f"{partes[0]} {partes[1]}" if len(partes) > 1 else marca
 
             carros.append({
+                "marca": marca,
                 "modelo": modelo,
                 "preco": preco,
                 "localizacao": localizacao,
                 "quilometragem": km,
+                "combustivel": combustivel,
                 "imagem": imagem,
                 "descricao": titulo,
                 "link": link,

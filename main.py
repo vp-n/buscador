@@ -24,6 +24,10 @@ def handle_dom():
                 return jsonify({"error": "Parâmetro 'marca' é obrigatório para o site Webmotors."}), 400
             # Chama get_dom com estado, marca e carro
             dom = module.get_dom(estado, marca, carro)
+
+        elif site.lower() == "napista":
+            dom = module.get_dom(carro)
+
         else:
             # Para outros sites, só estado e carro são necessários
             dom = module.get_dom(estado, carro)
