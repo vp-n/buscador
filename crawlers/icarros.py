@@ -85,11 +85,12 @@ def get_dom(estado, carro):
             });
         """)
 
-        page.goto(url, timeout=60000)
-        page.wait_for_load_state("networkidle", timeout=60000)
+        page.goto(url, timeout=220000)
+        page.wait_for_load_state("networkidle", timeout=220000)
 
         dom = page.content()
         browser.close()
 
 
     return dom
+
