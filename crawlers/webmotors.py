@@ -1,6 +1,7 @@
 from fake_useragent import UserAgent
 from playwright.sync_api import sync_playwright
 import urllib.parse
+import time
 
 ua = UserAgent()
 
@@ -60,48 +61,59 @@ def monta_url_webmotors(estado, marca, modelo, pagina=1):
     query_string = urllib.parse.urlencode(query_params, safe='')
     return f"{base_url}?{query_string}"
 
-def get_dom(estado, carro, marca):
+def get_dom(estado, carro, marca, tentativas_max=5):
     url = monta_url_webmotors(estado, marca, carro)
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
+    for tentativa in range(1, tentativas_max + 1):
+        print(f"[Tentativa {tentativa}] Acessando {url}")
 
-        context = browser.new_context(
-            user_agent=ua.random,
-            locale="pt-BR",
-            timezone_id="America/Sao_Paulo",
-            viewport={"width": 1366, "height": 768},
-            ignore_https_errors=True,
-            java_script_enabled=True,
-        )
+        try:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=False)
+                context = browser.new_context(
+                    user_agent=ua.random,
+                    locale="pt-BR",
+                    timezone_id="America/Sao_Paulo",
+                    viewport={"width": 1366, "height": 768},
+                    ignore_https_errors=True,
+                    java_script_enabled=True,
+                )
 
-        page = context.new_page()
+                page = context.new_page()
+                page.add_init_script("""
+                    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+                    window.chrome = { runtime: {}, loadTimes: () => {}, csi: () => {} };
+                    Object.defineProperty(navigator, 'languages', { get: () => ['pt-BR', 'pt'] });
+                    Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
+                """)
 
-        # Stealth para não parecer automação
-        page.add_init_script("""
-            Object.defineProperty(navigator, 'webdriver', {
-              get: () => undefined
-            });
+                page.goto(url, timeout=60000)
+                time.sleep(2)  # Dá tempo para qualquer mensagem de bloqueio aparecer
 
-            window.chrome = {
-                runtime: {},
-                loadTimes: function() {},
-                csi: function() {},
-            };
+                html = page.content().lower()
 
-            Object.defineProperty(navigator, 'languages', {
-                get: () => ['pt-BR', 'pt']
-            });
+                # 1) Se aparecer “Access to this page has been denied”, reinicia
+                if "access to this page has been denied" in html:
+                    print("[ACESSO NEGADO] Reiniciando navegador...")
+                    browser.close()
+                    continue
 
-            Object.defineProperty(navigator, 'plugins', {
-                get: () => [1, 2, 3]
-            });
-        """)
+                # 2) Se encontrar a div de “Comprar” (_MenuItem_oe4ti_1), significa sucesso
+                if '<div class="_menuitem_oe4ti_1" role="menuitem">comprar' in html:
+                    print("[PÁGINA CARREGADA] Encontrou a div de 'Comprar' — retornando DOM")
+                    dom = page.content()
+                    page.goto(url, timeout=60000)
 
-        page.goto(url, timeout=60000)
-        page.wait_for_load_state("networkidle", timeout=60000)
+                    browser.close()
+                    return dom
 
-        dom = page.content()
-        browser.close()
+                # 3) Caso contrário, a página não carregou os anúncios corretos: reinicia
+                print("[PÁGINA INCOMPLETA] Não encontrou a div de 'Comprar' — reiniciando...")
+                browser.close()
 
-    return dom
+        except Exception as e:
+            print(f"[ERRO NA TENTATIVA {tentativa}]:", e)
+            # Se der erro inesperado, reinicia automaticamente
+            continue
+
+    raise Exception("Todas as tentativas falharam: acesso negado, CAPTCHA ou página incompleta.")
