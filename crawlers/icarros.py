@@ -1,11 +1,9 @@
-# em crawlers/icarros.py
-
 from fake_useragent import UserAgent
 from playwright.sync_api import sync_playwright
+import time
 
 ua = UserAgent()
 
-# Dicionário com alguns estados e seus códigos iCarros (exemplos)
 estado_cidade_nome = {
     "mg": "belo horizonte",
     "pa": "belem",
@@ -34,7 +32,6 @@ estado_cidade_nome = {
     "pi": "teresina",
     "es": "vitoria"
 }
-
 
 def monta_url_icarros(estado, carro):
     cidade = estado_cidade_nome.get(estado.lower())
@@ -74,32 +71,19 @@ def get_dom(estado, carro):
             Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
         """)
 
-        tentativas = 2
-        for tentativa in range(tentativas):
-            try:
-                print(f"Tentativa {tentativa + 1} de {tentativas} para acessar: {url}")
-                page.goto(url, timeout=60000)
-                page.wait_for_load_state("networkidle", timeout=60000)
-                dom = page.content()
+        print(f"Acessando: {url}")
+        page.goto(url, timeout=60000)
 
-                # Se o DOM for muito pequeno, tenta novamente (página possivelmente falhou)
-                if len(dom) < 5000 and tentativa < tentativas - 1:
-                    print("DOM muito pequeno, recarregando página...")
-                    page.reload()
-                    continue
+        # Espera a página carregar visualmente
+        time.sleep(3)
 
-                # Limpa linhas vazias
-                dom_limpado = "\n".join([linha for linha in dom.splitlines() if linha.strip() != ""])
-                return dom_limpado
+        # Dá F5 (reload) e espera mais 10 segundos
+        print("F5 #1...")
+        page.reload()
+        time.sleep(2)
 
-            except Exception as e:
-                print("Erro ao tentar carregar a página:", e)
-                if tentativa < tentativas - 1:
-                    print("Tentando novamente...")
-                    page.reload()
-                else:
-                    raise e
+        dom = page.content()
+        dom_limpado = "\n".join([linha for linha in dom.splitlines() if linha.strip() != ""])
+
         browser.close()
-
-    return dom_limpado
-
+        return dom_limpado

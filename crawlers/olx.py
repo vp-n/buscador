@@ -1,5 +1,6 @@
 from fake_useragent import UserAgent
 from playwright.sync_api import sync_playwright
+import time
 
 ua = UserAgent()
 
@@ -7,7 +8,7 @@ def get_dom(estado, carro):
     url = f"https://www.olx.com.br/estado-{estado}?q={carro}"
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(headless=False)
 
         context = browser.new_context(
             user_agent=ua.random,
@@ -41,8 +42,18 @@ def get_dom(estado, carro):
             });
         """)
 
-        page.goto(url, timeout=120000)
-        page.wait_for_load_state("networkidle", timeout=120000)
+        print(f"Acessando: {url}")
+        page.goto(url, timeout=60000)
+
+        # Espera a página carregar visualmente
+        time.sleep(3)
+
+        # Dá F5 (reload) e espera mais 10 segundos
+        print("F5 #1...")
+        page.reload()
+        time.sleep(2)
+
+        dom = page.content()
 
         dom = page.content()
         browser.close()
