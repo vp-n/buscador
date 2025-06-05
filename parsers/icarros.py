@@ -1,64 +1,114 @@
-import re
-import json
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
+import re
 
 def identificar_favicon(link):
-    dominio = urlparse(link).hostname or ""
+    dominio = urlparse(link).hostname or "www.icarros.com.br"
     return f"https://www.google.com/s2/favicons?domain={dominio}&sz=64"
 
 def extrair_carros_completos_icarros(html):
     soup = BeautifulSoup(html, "html.parser")
-    links = soup.select("a.offer-card__title-container")
+    cards = soup.select("li.small-offer-card")
     carros = []
+    chaves_vistas = set()
 
-    for a in links:
+    for card in cards:
         try:
-            href = a.get("href", "")
-            link = f"https://www.icarros.com.br{href}" if href.startswith("/") else href
+            # Link
+            a_tag = card.find("a", href=True)
+            link = a_tag["href"] if a_tag else None
+            if link and not link.startswith("http"):
+                link = f"https://www.icarros.com.br{link}"
 
-            onclick = a.get("onclick", "")
-            json_like = re.search(r"\{event: 'select_item', text:.*?\}\s*\)\s*\}\)", onclick, re.DOTALL)
-            if not json_like:
+            if not link:
                 continue
 
-            dados_raw = json_like.group()
-            dados_raw = dados_raw.replace("event: 'select_item', ", "")
-            dados_raw = re.sub(r"(\w+):", r'"\1":', dados_raw)
-            dados_raw = dados_raw.replace("'", '"')
-            dados_json = json.loads(dados_raw)
+            # Imagem
+            img_tag = card.find("img")
+            imagem = img_tag["src"].strip() if img_tag and img_tag.get("src") else None
 
-            item = dados_json.get("select_item_items", dados_json.get("select_item", {}))
+            # Descrição
+            descricao_tag = card.select_one(
+                "div.small-offer-card__header a p.label__neutral.ids_textStyle_label_xsmall_regular")
+            descricao = descricao_tag.text.strip() if descricao_tag else None
 
-            modelo = item.get("item_name")
-            preco = item.get("price")
-            localizacao = item.get("item_category4")
-            km = item.get("item_category")
-            combustivel = item.get("item_category2")
+            # Combustível e câmbio
+            combustivel = cambio = None
+            if descricao:
+                combustiveis = ["Flex", "Gasolina", "Etanol", "Diesel", "Elétrico", "Híbrido"]
+                for tipo in combustiveis:
+                    if tipo.lower() in descricao.lower():
+                        combustivel = tipo
+                        break
+                if "manual" in descricao.lower():
+                    cambio = "Manual"
+                elif "automático" in descricao.lower() or "automatico" in descricao.lower():
+                    cambio = "Automático"
 
-            # Procura imagem dentro do mesmo card (ancestral de <a>)
-            card = a.find_parent("li") or a.find_parent("div")
-            img_tag = card.find("img") if card else None
-            imagem = img_tag.get("src") if img_tag and img_tag.get("src") else None
+            # Preço
+            preco_tag = card.select_one("div.small-offer-card__price-container p.label__onLight.ids_textStyle_label_medium_bold")
+            preco = None
+            if preco_tag:
+                texto = preco_tag.text.strip().replace("R$", "").replace(".", "").replace(",", ".")
+                try:
+                    preco = float(texto)
+                except ValueError:
+                    pass
 
-            partes_modelo = modelo.split() if modelo else []
-            marca = partes_modelo[0] if partes_modelo else None
+            # Ano
+            ano_tag = card.select_one("div.info-container__car-info p.label__neutral-variant.ids_textStyle_label_xsmall_regular")
+            ano = ano_tag.text.strip() if ano_tag else None
+
+            # Quilometragem
+            km_tag = card.select_one("div.info-container__car-info p.label__neutral.ids_textStyle_label_xsmall_regular")
+            quilometragem = None
+            if km_tag:
+                texto = km_tag.text.strip().lower().replace("km", "").replace(".", "").strip()
+                try:
+                    quilometragem = int(texto)
+                except ValueError:
+                    pass
+
+            # Localização
+            loc_tag = card.select_one("div.info-container__location-info p.label__neutral.ids_textStyle_label_xsmall_regular")
+            localizacao = loc_tag.text.strip() if loc_tag else None
+
+            # Marca: extraída do link
+            marca = None
+            match = re.search(r"icarros\.com\.br/comprar/[^/]+/([^/]+)/", link)
+            if match:
+                marca = match.group(1).capitalize()
+
+            # Modelo resumido da descrição
+            modelo = None
+            if descricao:
+                # Regex para pegar até "1.0 8V", "1.6 16V", etc.
+                match = re.search(r"^.*?\d\.\d(?:\s*\d{0,2}V)?", descricao)
+                modelo = match.group().strip() if match else descricao
+
+            # Verifica duplicidade por chave única
+            chave = f"{marca}|{modelo}|{ano}|{quilometragem}"
+            if chave in chaves_vistas:
+                continue
+            chaves_vistas.add(chave)
 
             carros.append({
                 "marca": marca,
                 "modelo": modelo,
                 "preco": preco,
-                "localizacao": localizacao,
-                "quilometragem": km,
+                "ano": ano,
+                "quilometragem": quilometragem,
                 "combustivel": combustivel,
+                "cambio": cambio,
+                "localizacao": localizacao,
+                "descricao": descricao,
                 "imagem": imagem,
-                "descricao": modelo,
                 "link": link,
                 "site_icon": identificar_favicon(link)
             })
 
         except Exception as e:
-            print("Erro ao processar anúncio:", e)
+            print(f"[ERRO] Falha ao processar card: {e}")
             continue
 
     return carros

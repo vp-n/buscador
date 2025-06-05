@@ -8,6 +8,7 @@ def handle_dom():
     site = request.args.get('site')
     estado = request.args.get('estado')
     carro = request.args.get('carro')
+    modelo = request.args.get('modelo')
 
     if not site or not estado or not carro:
         return jsonify({"error": "Parâmetros 'site', 'estado' e 'carro' são obrigatórios."}), 400
@@ -15,7 +16,7 @@ def handle_dom():
     try:
         # 1. Importa dinamicamente o módulo do crawler (ex: crawlers.olx)
         crawler_module = importlib.import_module(f'crawlers.{site.lower()}')
-        dom = crawler_module.get_dom(estado, carro)
+        dom = crawler_module.get_dom(estado, carro, modelo)
 
         # 2. Importa dinamicamente o módulo do parser (ex: parsers.olx)
         parser_module = importlib.import_module(f'parsers.{site.lower()}')
