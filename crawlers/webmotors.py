@@ -5,6 +5,7 @@ import time
 
 ua = UserAgent()
 
+# Dicionário com coordenadas por estado
 estado_cidade_coords = {
     "mg": ("belo horizonte", "-19.920830,-43.937778"),
     "pa": ("belem", "-1.455833,-48.502222"),
@@ -34,12 +35,22 @@ estado_cidade_coords = {
     "es": ("vitoria", "-20.3155,-40.3128")
 }
 
+def get_coordenada_por_estado(estado):
+    info = estado_cidade_coords.get(estado.lower())
+    if info:
+        _, coordenada = info
+        lat, lng = coordenada.split(",")
+        return float(lat), float(lng)
+    else:
+        print("[AVISO] Estado não encontrado, usando coordenada de São Paulo")
+        return -23.55052, -46.633308  # Coordenada padrão SP
+
 def monta_url_webmotors(estado, marca, modelo, pagina=1):
     info = estado_cidade_coords.get(estado.lower())
     if not info:
         raise ValueError(f"Estado '{estado}' não mapeado no dicionário.")
 
-    cidade, coords = info
+    cidade, coordenada = info
 
     estado_slug = estado.lower()
     cidade_slug = cidade.lower().replace(" ", "-")
@@ -51,7 +62,7 @@ def monta_url_webmotors(estado, marca, modelo, pagina=1):
     query_params = {
         "lkid": "1948",
         "tipoveiculo": "carros",
-        "localizacao": f"{coords}x100km",
+        "localizacao": f"{coordenada}x100km",  # GPS baseado no estado
         "estadocidade": f"{cidade.capitalize()}-{cidade_slug}",
         "marca1": modelo.upper(),
         "modelo1": marca.upper(),
@@ -63,6 +74,7 @@ def monta_url_webmotors(estado, marca, modelo, pagina=1):
 
 def get_dom(estado, carro, marca, tentativas_max=5):
     url = monta_url_webmotors(estado, marca, carro)
+    latitude, longitude = get_coordenada_por_estado(estado)
 
     for tentativa in range(1, tentativas_max + 1):
         print(f"[Tentativa {tentativa}] Acessando {url}")
@@ -77,6 +89,8 @@ def get_dom(estado, carro, marca, tentativas_max=5):
                     viewport={"width": 1366, "height": 768},
                     ignore_https_errors=True,
                     java_script_enabled=True,
+                    geolocation={"latitude": latitude, "longitude": longitude},
+                    permissions=["geolocation"],
                 )
 
                 page = context.new_page()
@@ -88,32 +102,26 @@ def get_dom(estado, carro, marca, tentativas_max=5):
                 """)
 
                 page.goto(url, timeout=60000)
-                time.sleep(2)  # Dá tempo para qualquer mensagem de bloqueio aparecer
+                time.sleep(2)
 
                 html = page.content().lower()
 
-                # 1) Se aparecer “Access to this page has been denied”, reinicia
                 if "access to this page has been denied" in html:
                     print("[ACESSO NEGADO] Reiniciando navegador...")
                     browser.close()
                     continue
 
-                # 2) Se encontrar a div de “Comprar” (_MenuItem_oe4ti_1), significa sucesso
                 if '<div class="_menuitem_oe4ti_1" role="menuitem">comprar' in html:
                     print("[PÁGINA CARREGADA] Encontrou a div de 'Comprar' — retornando DOM")
                     dom = page.content()
-                    page.goto(url, timeout=60000)
-
                     browser.close()
                     return dom
 
-                # 3) Caso contrário, a página não carregou os anúncios corretos: reinicia
                 print("[PÁGINA INCOMPLETA] Não encontrou a div de 'Comprar' — reiniciando...")
                 browser.close()
 
         except Exception as e:
             print(f"[ERRO NA TENTATIVA {tentativa}]:", e)
-            # Se der erro inesperado, reinicia automaticamente
             continue
 
     raise Exception("Todas as tentativas falharam: acesso negado, CAPTCHA ou página incompleta.")
