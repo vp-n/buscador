@@ -9,6 +9,7 @@ def handle_dom():
     estado = request.args.get('estado')
     carro = request.args.get('carro')
     marca = request.args.get('marca')
+    modelo = request.args.get('modelo')  # novo parâmetro
 
     if not site:
         return jsonify({"error": "Parâmetro 'site' é obrigatório."}), 400
@@ -18,7 +19,12 @@ def handle_dom():
         if not carro:
             return jsonify({"error": "Parâmetro 'carro' é obrigatório para o site Napista."}), 400
 
-    elif site.lower() in ["webmotors", "mobiauto"]:
+    elif site.lower() == "webmotors":
+        # agora requer estado, marca e modelo
+        if not estado or not marca or not modelo:
+            return jsonify({"error": "Parâmetros 'estado', 'marca' e 'modelo' são obrigatórios para o site WebMotors."}), 400
+
+    elif site.lower() == "mobiauto":
         if not estado or not marca or not carro:
             return jsonify({"error": f"Parâmetros 'estado', 'marca' e 'carro' são obrigatórios para o site {site.title()}."}), 400
 
@@ -33,8 +39,10 @@ def handle_dom():
         # Chama get_dom conforme o site
         if site.lower() == "napista":
             dom = crawler_module.get_dom(carro)
-        elif site.lower() in ["webmotors", "mobiauto"]:
-            dom = crawler_module.get_dom(estado, marca, carro)
+        elif site.lower() == "webmotors":
+            dom = crawler_module.get_dom(estado, marca, modelo)  # <-- alterado aqui
+        elif site.lower() == "mobiauto":
+            dom = crawler_module.get_dom(estado, carro, marca)
         else:
             dom = crawler_module.get_dom(estado, carro)
 

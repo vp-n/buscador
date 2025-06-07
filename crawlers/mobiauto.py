@@ -1,10 +1,10 @@
 # crawlers/mobiauto.py
 from fake_useragent import UserAgent
 from playwright.sync_api import sync_playwright
+import time
 
 ua = UserAgent()
 
-# Dicionário com cidade e coordenadas pode ser compartilhado entre módulos
 estado_cidade_nome = {
     "mg": "belo horizonte",
     "pa": "belem",
@@ -34,7 +34,6 @@ estado_cidade_nome = {
     "es": "vitoria"
 }
 
-
 def monta_url_mobiauto(estado, marca, modelo):
     cidade = estado_cidade_nome.get(estado.lower())
     if not cidade:
@@ -51,7 +50,7 @@ def get_dom(estado, marca, modelo):
     url = monta_url_mobiauto(estado, marca, modelo)
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
+        browser = p.chromium.launch(headless=True)
         context = browser.new_context(
             user_agent=ua.random,
             locale="pt-BR",
@@ -71,6 +70,20 @@ def get_dom(estado, marca, modelo):
 
         page.goto(url, timeout=60000)
         page.wait_for_load_state("networkidle", timeout=60000)
+
+        # 👉 Desce a página um pouco para carregar mais elementos
+        page.mouse.wheel(0, 1000)
+        time.sleep(2)
+
+        page.mouse.wheel(0, 1000)
+        time.sleep(2)
+
+        page.mouse.wheel(0, 1000)
+        time.sleep(2)
+
+
+
+
 
         dom = page.content()
         browser.close()
