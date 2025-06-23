@@ -73,7 +73,8 @@ GET /get-dom
 > Não precisa do estado, apenas do modelo do carro.
 
 ```
-    /get-dom?site=napista&carro=gol
+/get-dom?site=napista&carro=gol
+/get-dom?site=napista&carro=jeep-rio_de_janeiro (Passar assim: carro e estado)
 ```
 
 ### 🔹 Facebook Marketplace
