@@ -32,11 +32,16 @@ def extrair_carros_completos_facebook(html):
             localizacao_match = re.search(r"no grupo (.*)$", alt)
             localizacao = localizacao_match.group(1).strip() if localizacao_match else None
 
+            # Preço
+            preco_tag = card.find(string=re.compile(r"R\$"))
+            preco = preco_tag.strip() if preco_tag else None
+
             carros.append({
                 "ano": ano,
                 "marca": marca,
                 "modelo": modelo,
                 "localizacao": localizacao,
+                "preco": preco,
                 "imagem": imagem,
                 "descricao": alt,
                 "link": link,
